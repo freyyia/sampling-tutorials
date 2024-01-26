@@ -10,3 +10,6 @@ from .plots import *
 from .welford import *
 from .load_model import *
 from .spectral_normalize_chen import *
+from .transformations import *
+from .sampling_kernels import * 
+from .data_utils import *
