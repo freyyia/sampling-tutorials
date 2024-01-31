@@ -23,6 +23,10 @@ import torch
 import hdf5storage
 import numpy as np
 import torch.nn.functional as F
+import cv2
+from skimage.metrics import structural_similarity as ssim
+from torchmetrics.image.lpip import LearnedPerceptualImagePatchSimilarity
+
 
 
 # following code is modified from
@@ -71,7 +75,6 @@ def load_kernels(config):
     k_list = [torch.from_numpy(item).float().to(config.device) for item in k_list]
     return k_list
 
-
 def matlab_style_gauss2D(shape=(3,3),sigma=0.5):
     """
     2D gaussian mask - should give the same result as MATLAB's
@@ -98,7 +101,6 @@ def A(y, k_tensor):
     """
     return G(y, k_tensor, sf=1)
 
-
 def G(x, k, sf=3):
     """
     x: image, NxcxHxW
@@ -111,7 +113,6 @@ def G(x, k, sf=3):
     """
     x = downsample(imfilter(x, k), sf=sf)
     return x
-
 
 def Gt(x, k, sf=3):
     """
@@ -213,4 +214,84 @@ def dim_pad_circular(input, padding, dimension):
         dim=dimension - 1,
     )
     return input
+
+def imread_uint(path, n_channels=3):
+    #  input: path
+    # output: HxWx3(RGB or GGG), or HxWx1 (G)
+    if n_channels == 1:
+        img = cv2.imread(path, 0)  # cv2.IMREAD_GRAYSCALE
+        img = np.expand_dims(img, axis=2)  # HxWx1
+    elif n_channels == 3:
+        img = cv2.imread(path, cv2.IMREAD_UNCHANGED)  # BGR or G
+        if img.ndim == 2:
+            img = cv2.cvtColor(img, cv2.COLOR_GRAY2RGB)  # GGG
+        else:
+            img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)  # RGB
+    return img
+
+def crop_center(img, cropx, cropy):
+    y, x = img.shape[0], img.shape[1]
+    startx = x // 2 - (cropx // 2)
+    starty = y // 2 - (cropy // 2)
+    return img[starty : starty + cropy, startx : startx + cropx, :]
+
+def array2tensor(img):
+    return torch.from_numpy(img).permute(2, 0, 1).unsqueeze(0)
+
+def tensor2array(img):
+    img = img.cpu()
+    img = img.squeeze(0).detach().numpy()
+    img = np.transpose(img, (1, 2, 0))
+    return img
+
+"""
+    Image quality measures
+"""
+
+def psnr(img1, img2):
+    if not img1.shape == img2.shape:
+        raise ValueError("Input images must have the same dimensions.")
+    # img1 = np.float64(img1)
+    # img2 = np.float64(img2)
+    mse = np.mean((img1 - img2) ** 2)
+    return 20 * np.log10(1.0 / np.sqrt(mse))
+
+def psnr_torch(img1, img2):
+    if not img1.shape == img2.shape:
+        raise ValueError("Input images must have the same dimensions.")
+    mse = torch.mean((img1 - img2) ** 2)
+    return 20 * torch.log10(1.0 / torch.sqrt(mse))
+
+def psnr_torch2np(tensor1, tensor2) :
+    if not tensor1.shape == tensor2.shape:
+        raise ValueError('Input images must have the same dimensions.')
+    array1 = tensor2array(tensor1)
+    array2 = tensor2array(tensor2)
+    mse = np.mean((array1 - array2)**2)
+    return 20 * np.log10(1. / np.sqrt(mse))
+
+def nrmse_torch2np(tensor1, tensor_true):
+    array1 = tensor2array(tensor1)
+    array_true = tensor2array(tensor_true)
+    return np.linalg.norm((array1-array_true).ravel(),2)/np.linalg.norm(array_true.ravel(),2)
+
+def ssim_torch2np(tensor1, tensor2):
+    img1 = tensor2array(tensor1)
+    img2 = tensor2array(tensor2)
+    ssim_score = ssim(img1, img2, channel_axis = 2, data_range = 1.) # channel_axis = 2 full=True, multichannel=True
+    return ssim_score
+
+class Lpips_object():
+    def __init__(self, net='squeeze', device='cuda'):
+        self.device = device
+        self.lpips = LearnedPerceptualImagePatchSimilarity(net_type=net, device=device)
+
+    def compute(self, tensor1, tensor2):
+        # LPIPS needs the images to be in the [-1, 1] range.
+        tensor1 = tensor1.unsqueeze(0).float().clamp_(0, 1)
+        tensor2 = tensor2.unsqueeze(0).float().clamp_(0, 1)
+        tensor1_transf = tensor1 * 2 - 1
+        tensor2_transf = tensor2 * 2 - 1
+        return self.lpips(tensor1_transf, tensor2_transf)
+
 
