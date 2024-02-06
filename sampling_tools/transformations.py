@@ -36,7 +36,6 @@ def transform_flip_rot(image):
     select_rot = random.choice([0, 1, 2, 3])
     rot = (select_rot > 0)
     if rot: # rotate
-        print("rotate ", select_rot)
         image = torch.rot90(image, k=select_rot, dims=(-1,-2))
 
     return image, flip_lr, flip_ud, rot, select_rot

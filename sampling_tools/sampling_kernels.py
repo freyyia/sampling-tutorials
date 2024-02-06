@@ -22,14 +22,17 @@ Melidonis, Paul Dobson, Yoann Altmann, Marcelo Pereyra, Konstantinos C. Zygalaki
 
 import torch
 
-def RMYULA(X,Lipschitz,grad_Phi,device):
+def RMYULA(X,Lipschitz,grad_Phi,device, *args):
+
+    if len(args) < 4:
+        raise SystemExit('Error: Not enough arguments provided')
    
     # MYULA step-size
     dtMYULA = 1/(Lipschitz) # step-size
 
-    Q=torch.sqrt(2*dtMYULA)*torch.randn_like(X).cuda(device) # diffusion term
+    Q=torch.sqrt(2*dtMYULA)*torch.randn_like(X).to(device) # diffusion term
 
-    grad= grad_Phi(X) 
+    grad= grad_Phi(X, args[0], args[1], args[2], args[3]) 
     
     # MYULA sample
     XkMYULA = (X - dtMYULA*grad + Q).detach().clone()

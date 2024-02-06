@@ -157,3 +157,50 @@ def chambolle_prox_TV(g1, device, varargin):
       print(f'\t\t|=====> err TV = {round(err,3)}\n')
 
     return g - lambd * DivergenceIm(px,py)
+
+
+def chambolle_prox_TV_color(g1, apprParam, MaxIter, device):
+    
+    with torch.no_grad():
+
+        g = g1.clone().detach()
+
+        # initialize
+        px = torch.zeros(g.shape, device = device)
+        py = torch.zeros(g.shape, device = device)
+        numerx  = torch.zeros(g.shape, device = device)
+        numery  = torch.zeros(g.shape, device = device)
+        tmp = torch.zeros(g.shape, device = device)
+        div_f = torch.zeros(g.shape, device = device)
+        cont = 1     
+        k    = 0
+
+        #defaults for optional parameters
+        tau = 0.249
+        tol = 1e-3
+
+        ## Main body
+        while cont:
+            k = k+1
+            for i in range(3):
+                # compute Divergence of (px, py)
+                divp = DivergenceIm(px[i],py[i]) 
+                u = divp - torch.divide(g[i], apprParam).to(device)
+                # compute gradient of u
+                upx,upy = GradientIm(u,device)
+                tmp[i] = torch.sqrt(upx*upx + upy*upy).to(device)
+                numerx[i] = px[i] + tau * upx
+                numery[i] = py[i] + tau * upy
+            # update px and py
+            px_new = torch.divide(numerx,1 + tau * torch.sqrt(torch.sum(tmp**2, axis = 0)))
+            py_new = torch.divide(numery,1 + tau * torch.sqrt(torch.sum(tmp**2, axis = 0)))
+            err = torch.max(torch.sqrt((px_new-px)**2 + (py_new-py)**2))
+            # check of the criterion
+            px = px_new.clone()
+            py = py_new.clone()
+            cont = ((k<MaxIter) and (err>tol))
+
+    for i in range(3):
+        div_f[i] = DivergenceIm(px[i],py[i])
+        
+    return g - apprParam * div_f

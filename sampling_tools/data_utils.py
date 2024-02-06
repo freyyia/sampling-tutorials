@@ -244,6 +244,15 @@ def tensor2array(img):
     img = np.transpose(img, (1, 2, 0))
     return img
 
+def array2tensor_3c(img):
+    return torch.from_numpy(img).permute(2, 0, 1)
+
+def tensor2array_3c(img):
+    img = img.cpu()
+    img = img.detach().numpy()
+    img = np.transpose(img, (1, 2, 0))
+    return img
+
 """
     Image quality measures
 """
@@ -282,14 +291,14 @@ def ssim_torch2np(tensor1, tensor2):
     return ssim_score
 
 class Lpips_object():
-    def __init__(self, net='squeeze', device='cuda'):
+    def __init__(self, device, net='squeeze'):
         self.device = device
-        self.lpips = LearnedPerceptualImagePatchSimilarity(net_type=net, device=device)
+        self.lpips = LearnedPerceptualImagePatchSimilarity(net_type=net).to(device)
 
     def compute(self, tensor1, tensor2):
         # LPIPS needs the images to be in the [-1, 1] range.
-        tensor1 = tensor1.unsqueeze(0).float().clamp_(0, 1)
-        tensor2 = tensor2.unsqueeze(0).float().clamp_(0, 1)
+        tensor1 = tensor1.float().clamp_(0, 1)
+        tensor2 = tensor2.float().clamp_(0, 1)
         tensor1_transf = tensor1 * 2 - 1
         tensor2_transf = tensor2 * 2 - 1
         return self.lpips(tensor1_transf, tensor2_transf)
