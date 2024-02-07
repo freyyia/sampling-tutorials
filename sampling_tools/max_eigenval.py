@@ -69,7 +69,6 @@ def max_eigenval_w_kernel(A, At, kernel, im_size, tol, max_iter, verbose, device
         
         x = torch.normal(mean=0, std=1,size=(im_size,im_size))[None][None].to(device)
         x = x/torch.norm(torch.ravel(x),2)
-        print("max_eigenval_w_kernel: " , x.shape)
         init_val = 1
         
         for k in range(0,max_iter):
