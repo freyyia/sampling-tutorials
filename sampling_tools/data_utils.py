@@ -291,7 +291,7 @@ def ssim_torch2np(tensor1, tensor2):
     return ssim_score
 
 class Lpips_object():
-    def __init__(self, device, net='squeeze'):
+    def __init__(self, device, net='alex'):
         self.device = device
         self.lpips = LearnedPerceptualImagePatchSimilarity(net_type=net).to(device)
 
