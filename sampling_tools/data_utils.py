@@ -55,7 +55,7 @@ def load_kernels(config):
 
     k_list = []
     # load the 8 motion blur kernels
-    kernel_path = os.path.join(config.kernel_path, config.kernel_name)
+    kernel_path = os.path.join(config['kernel_path'], config['kernel_name'])
     kernels = hdf5storage.loadmat(kernel_path)["kernels"]
     # Kernels follow the order given in the paper [2] (Table 2). 
     # The 8 first kernels are motion blur kernels, the 9th kernel is uniform and the 10th Gaussian.
@@ -72,7 +72,7 @@ def load_kernels(config):
             k = np.float32(kernels[0, k_index])
         k_list.append(k)
 
-    k_list = [torch.from_numpy(item).float().to(config.device) for item in k_list]
+    k_list = [torch.from_numpy(item).float().to(config['device']) for item in k_list]
     return k_list
 
 def matlab_style_gauss2D(shape=(3,3),sigma=0.5):
